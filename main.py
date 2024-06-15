@@ -1,6 +1,10 @@
 import os
 import dotenv
 import random
+import json
+
+from database.db_connection import DBConnection
+from database.models import create_tables, User, UserWord, Word
 
 import telebot
 from telebot import types
@@ -30,4 +34,12 @@ def start(message):
 
 
 if __name__ == '__main__':
+    db = DBConnection()
+    engine = db.create_engine()
+    session = db.create_session(engine)
+
+    # create_tables(engine)
+    # db.add_test_data(session=session, json=json, Word=Word)
+
     bot.polling()
+    session.close()

@@ -1,0 +1,12 @@
+[
+  {"model": "word", "pk": 1, "fields": {"word_eng": "Apple", "word_rus":  "Яблоко"}},
+  {"model": "word", "pk": 2, "fields": {"word_eng": "Bus", "word_rus":  "Автобус"}},
+  {"model": "word", "pk": 3, "fields": {"word_eng": "Mouse", "word_rus":  "Мышь"}},
+  {"model": "word", "pk": 4, "fields": {"word_eng": "Orange", "word_rus":  "Апельсин"}},
+  {"model": "word", "pk": 5, "fields": {"word_eng": "Fridge", "word_rus":  "Холодильник"}},
+  {"model": "word", "pk": 6, "fields": {"word_eng": "Pencil", "word_rus":  "Карандаш"}},
+  {"model": "word", "pk": 7, "fields": {"word_eng": "Phone", "word_rus":  "Телефон"}},
+  {"model": "word", "pk": 8, "fields": {"word_eng": "Beautiful", "word_rus":  "Красивый"}},
+  {"model": "word", "pk": 9, "fields": {"word_eng": "Cheap", "word_rus":  "Дешевый"}},
+  {"model": "word", "pk": 10, "fields": {"word_eng": "Expensive", "word_rus":  "Дорогой"}}
+]
