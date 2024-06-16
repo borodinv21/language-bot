@@ -1,5 +1,6 @@
 import sqlalchemy
 import os
+import json
 from dotenv import load_dotenv
 
 from sqlalchemy.orm import sessionmaker
@@ -22,7 +23,7 @@ class DBConnection:
     def create_engine(self):
         return sqlalchemy.create_engine(self.DSN)
 
-    def add_test_data(self, json, Word, session):
+    def add_test_data(self, Word, session):
         with open('fixtures/words.json', 'r') as fd:
             data = json.load(fd)
 
