@@ -6,3 +6,4 @@ class States(StatesGroup):
     another_words = State()
     word_eng = State()
     word_rus = State()
+    userword = State()
