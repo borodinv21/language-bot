@@ -10,6 +10,7 @@ from sqlalchemy import func
 from command import Command
 from states import States
 from translate import Translator
+from messages import Message
 
 
 dotenv.load_dotenv()
@@ -31,12 +32,12 @@ def start(message):
             session.add(userword)
 
         session.commit()
-    bot.send_message(message.chat.id,"Привет 👋 Давай попрактикуемся в английском языке. Тренировки можешь проходить в удобном для себя темпе.\nУ тебя есть возможность использовать тренажёр, как конструктор, и собирать свою собственную базу для обучения. Для этого воспрользуйся инструментами:\nдобавить слово ➕,\nудалить слово 🔙.\nНу что, начнём ⬇️", reply_markup=show_default_buttons())
+    bot.send_message(message.chat.id, Message.start_message + Message.abilities, reply_markup=show_default_buttons())
 
 @bot.message_handler(func=lambda message: message.text == Command.EXIT)
 @bot.message_handler(commands=['help'])
 def help(message):
-    bot.send_message(message.chat.id, 'Вот список моих комманд:\n/start\n/train\n/help', reply_markup=show_default_buttons())
+    bot.send_message(message.chat.id, Message.commands_list, reply_markup=show_default_buttons())
 
 def show_default_buttons():
     markup = types.ReplyKeyboardMarkup(row_width=2)
@@ -77,6 +78,7 @@ def train(message):
 
     bot.send_message(message.chat.id, f'Какой перевод у слова:\n{russian_word}', reply_markup=markup)
     bot.set_state(message.from_user.id, States.target_word, message.chat.id)
+
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['target_word'] = target_word
         data['russian_word'] = russian_word
@@ -85,7 +87,7 @@ def train(message):
 
 @bot.message_handler(func=lambda message: message.text == Command.DELETE_WORD)
 def delete_word(message):
-    bot.send_message(message.chat.id, "Введите слово, которое хотите удалить из вашей базы знаний.")
+    bot.send_message(message.chat.id, "Введите слово, которое хотите удалить из вашей базы знаний.🗑")
     bot.register_next_step_handler(message, delete_word_from_db)
 
 def delete_word_from_db(message):
@@ -94,29 +96,29 @@ def delete_word_from_db(message):
         check_userword = session.query(UserWord).filter(UserWord.word_id == check_word[0].id).first()
         if check_userword:
             kb = types.InlineKeyboardMarkup(row_width=1)
-            yes_btn = types.InlineKeyboardButton(text='Да', callback_data='delete_yes_btn')
-            no_btn = types.InlineKeyboardButton(text='Нет', callback_data='delete_no_btn')
+            yes_btn = types.InlineKeyboardButton(text=Message.answer_yes, callback_data='delete_yes_btn')
+            no_btn = types.InlineKeyboardButton(text=Message.answer_no, callback_data='delete_no_btn')
             kb.add(yes_btn, no_btn)
 
-            bot.send_message(message.chat.id, f'Удалить слово {check_word[0].word_eng} -> {check_word[0].word_rus}?', reply_markup=kb)
+            bot.send_message(message.chat.id, f'Удалить слово {check_word[0].word_eng} -> {check_word[0].word_rus}?🗑', reply_markup=kb)
             bot.set_state(message.from_user.id, States.userword, message.chat.id)
             with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
                 data['userword'] = check_userword
         else:
-            bot.send_message(message.from_user.id, f'Такого слова нет в вашей базе знаний', reply_markup=show_default_buttons())
+            bot.send_message(message.from_user.id, f'Такого слова нет в вашей базе знаний➖', reply_markup=show_default_buttons())
     else:
-        bot.send_message(message.from_user.id, f'Такого слова нет в вашей базе знаний', reply_markup=show_default_buttons())
+        bot.send_message(message.from_user.id, f'Такого слова нет в вашей базе знаний➖', reply_markup=show_default_buttons())
 
 
 @bot.message_handler(func=lambda message: message.text == Command.ADD_WORD)
 def add_word(message):
-    bot.send_message(message.chat.id, 'Введите слово, которое хотите добавить')
+    bot.send_message(message.chat.id, 'Введите слово, которое хотите добавить.☑')
     bot.register_next_step_handler(message, add_word_to_db)
 
 def add_word_to_db(message):
     kb = types.InlineKeyboardMarkup(row_width=1)
-    yes_btn = types.InlineKeyboardButton(text='Да', callback_data='add_yes_btn')
-    no_btn = types.InlineKeyboardButton(text='Нет', callback_data='add_no_btn')
+    yes_btn = types.InlineKeyboardButton(text=Message.answer_yes, callback_data='add_yes_btn')
+    no_btn = types.InlineKeyboardButton(text=Message.answer_no, callback_data='add_no_btn')
     kb.add(yes_btn, no_btn)
 
     translator = Translator(from_lang="en", to_lang="ru")
@@ -184,23 +186,26 @@ def next_word(message):
     train(message)
 
 
+
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def message_reply(message):
-    print(bot.retrieve_data(message.from_user.id, message.chat.id))
-    try:
+    if States.target_word:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            target_word = data.get('target_word')
-            russian_word = data.get('russian_word')
+            target_word = data['target_word']
+            russian_word = data['russian_word']
+            print(target_word)
+            print(russian_word)
 
-            if message.text == target_word:
-                bot.send_message(message.chat.id, f"Всё верно!\n{target_word} -> {russian_word}")
-                train(message)
-            else:
-                bot.send_message(message.chat.id, f"Ответ неверный!\nПравильный ответ: {target_word}")
-                train(message)
-    except:
+        if message.text == target_word:
+            bot.send_message(message.chat.id, Message.correct_answer + f"\n{target_word}🇺🇲 -> {russian_word}🇷🇺")
+            train(message)
+        else:
+            bot.send_message(message.chat.id, Message.incorrect_answer + f"\nПравильный ответ: {target_word}🇺🇲")
+            train(message)
+    else:
         bot.send_message(message.chat.id, 'Простите, я не понял что вы хотели сказать...')
         help(message)
+
 
 
 
