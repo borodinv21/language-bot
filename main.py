@@ -53,42 +53,48 @@ def show_default_buttons():
 @bot.message_handler(func=lambda message: message.text == Command.TRAIN)
 @bot.message_handler(commands=['train'])
 def train(message):
-    markup = types.ReplyKeyboardMarkup(row_width=2)
+    if session.query(User.id == message.chat.id).first():
+        markup = types.ReplyKeyboardMarkup(row_width=2)
 
-    random_userword_word_id = session.query(UserWord.word_id).order_by(func.random()).first()[0]
+        random_userword_word_id = session.query(UserWord.word_id).order_by(func.random()).first()[0]
 
-    russian_word = session.query(Word.word_rus).where(Word.id == random_userword_word_id).first()[0]
-    target_word = session.query(Word.word_eng).where(Word.id == random_userword_word_id).first()[0]
+        russian_word = session.query(Word.word_rus).where(Word.id == random_userword_word_id).first()[0]
+        target_word = session.query(Word.word_eng).where(Word.id == random_userword_word_id).first()[0]
 
-    target_word_btn = types.KeyboardButton(target_word)
+        target_word_btn = types.KeyboardButton(target_word)
 
-    other_wrong_words = session.query(Word.word_eng).where(Word.id != random_userword_word_id).order_by(func.random()).all()[:3]
-    other_wrong_words_buttons = [types.KeyboardButton(word[0]) for word in other_wrong_words]
+        other_wrong_words = session.query(Word.word_eng).where(Word.id != random_userword_word_id).order_by(func.random()).all()[:3]
+        other_wrong_words_buttons = [types.KeyboardButton(word[0]) for word in other_wrong_words]
 
-    buttons = other_wrong_words_buttons + [target_word_btn]
-    random.shuffle(buttons)
+        buttons = other_wrong_words_buttons + [target_word_btn]
+        random.shuffle(buttons)
 
-    next_btn = types.KeyboardButton(Command.NEXT)
-    add_word_btn = types.KeyboardButton(Command.ADD_WORD)
-    delete_word_btn = types.KeyboardButton(Command.DELETE_WORD)
-    exit_btn = types.KeyboardButton(Command.EXIT)
-    buttons.extend([next_btn, add_word_btn, delete_word_btn, exit_btn])
+        next_btn = types.KeyboardButton(Command.NEXT)
+        add_word_btn = types.KeyboardButton(Command.ADD_WORD)
+        delete_word_btn = types.KeyboardButton(Command.DELETE_WORD)
+        exit_btn = types.KeyboardButton(Command.EXIT)
+        buttons.extend([next_btn, add_word_btn, delete_word_btn, exit_btn])
 
-    markup.add(*buttons)
+        markup.add(*buttons)
 
-    bot.send_message(message.chat.id, f'Какой перевод у слова:\n{russian_word}', reply_markup=markup)
-    bot.set_state(message.from_user.id, States.target_word, message.chat.id)
+        bot.send_message(message.chat.id, f'Какой перевод у слова:\n{russian_word}', reply_markup=markup)
+        bot.set_state(message.from_user.id, States.target_word, message.chat.id)
 
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        data['target_word'] = target_word
-        data['russian_word'] = russian_word
-        data['other_words'] = other_wrong_words
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['target_word'] = target_word
+            data['russian_word'] = russian_word
+            data['other_words'] = [word[0] for word in other_wrong_words]
+    else:
+        bot.send_message(message.chat.id, Message.warning2)
 
 
 @bot.message_handler(func=lambda message: message.text == Command.DELETE_WORD)
 def delete_word(message):
-    bot.send_message(message.chat.id, "Введите слово, которое хотите удалить из вашей базы знаний.🗑")
-    bot.register_next_step_handler(message, delete_word_from_db)
+    if session.query(User.id == message.chat.id).first():
+        bot.send_message(message.chat.id, "Введите слово, которое хотите удалить из вашей базы знаний.🗑")
+        bot.register_next_step_handler(message, delete_word_from_db)
+    else:
+        bot.send_message(message.chat.id, Message.warning2)
 
 def delete_word_from_db(message):
     check_word = session.query(Word).filter(Word.word_eng == message.text.lower().capitalize()).all()
@@ -112,8 +118,11 @@ def delete_word_from_db(message):
 
 @bot.message_handler(func=lambda message: message.text == Command.ADD_WORD)
 def add_word(message):
-    bot.send_message(message.chat.id, 'Введите слово, которое хотите добавить.☑')
-    bot.register_next_step_handler(message, add_word_to_db)
+    if session.query(User.id == message.chat.id).first():
+        bot.send_message(message.chat.id, 'Введите слово, которое хотите добавить.☑')
+        bot.register_next_step_handler(message, add_word_to_db)
+    else:
+        bot.send_message(message.chat.id, Message.warning2)
 
 def add_word_to_db(message):
     kb = types.InlineKeyboardMarkup(row_width=1)
@@ -142,17 +151,17 @@ def check_callback_data(callback):
             word_eng = data['word_eng']
             word_rus = data['word_rus']
 
-        check_word = session.query(Word).filter(Word.word_eng == word_eng).all()
+        check_word = session.query(Word).filter(Word.word_eng == word_eng).first()
 
         if not check_word:
             add_word_to_user(callback, word_eng, word_rus)
         else:
-            check_userword = session.query(UserWord).filter(UserWord.word_id == check_word[0].id).all()
+            check_userword = session.query(UserWord).filter(UserWord.word_id == check_word.id).all()
 
             if check_userword:
                 bot.send_message(callback.from_user.id, f"Слово {word_eng} -> {word_rus} уже есть в вашей базе знаний!")
             else:
-                add_word_to_user(callback, word_eng, word_rus)
+                add_word_to_user(callback, word_eng, word_rus, word_exists=True)
 
     if callback.data == "delete_yes_btn":
         with bot.retrieve_data(callback.from_user.id, callback.from_user.id) as data:
@@ -166,11 +175,14 @@ def check_callback_data(callback):
     if callback.data == "add_no_btn" or callback.data == "delete_no_btn":
         bot.send_message(callback.from_user.id, 'Хорошо, продолжим тренировку?', reply_markup=show_default_buttons())
 
-def add_word_to_user(callback, word_eng, word_rus):
-    max_word_id = session.query(func.max(Word.id)).first()[0]
-    word = Word(id=max_word_id + 1, word_eng=word_eng, word_rus=word_rus)
-    session.add(word)
-    session.commit()
+def add_word_to_user(callback, word_eng, word_rus, word_exists=False):
+    if not word_exists:
+        max_word_id = session.query(func.max(Word.id)).first()[0]
+        word = Word(id=max_word_id + 1, word_eng=word_eng, word_rus=word_rus)
+        session.add(word)
+        session.commit()
+    else:
+        word = session.query(Word).filter(Word.word_eng == word_eng).first()
 
     max_userword_id = session.query(func.max(UserWord.id)).first()[0]
     user = session.query(User).filter(User.telegram_id == callback.from_user.id).first()
@@ -189,22 +201,28 @@ def next_word(message):
 
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def message_reply(message):
-    if States.target_word:
-        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+    print(bot.retrieve_data(message.from_user.id, message.chat.id))
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        print(data)
+        if data['target_word']:
             target_word = data['target_word']
             russian_word = data['russian_word']
-            print(target_word)
-            print(russian_word)
+            other_words = data['other_words']
 
-        if message.text == target_word:
-            bot.send_message(message.chat.id, Message.correct_answer + f"\n{target_word}🇺🇲 -> {russian_word}🇷🇺")
-            train(message)
+
+            if message.text == target_word:
+                bot.send_message(message.chat.id, Message.correct_answer + f"\n{target_word}🇺🇲 -> {russian_word}🇷🇺")
+                train(message)
+            elif message.text in other_words:
+                print(message.text)
+                bot.send_message(message.chat.id, Message.incorrect_answer + f"\nПравильный ответ: {target_word}🇺🇲")
+                train(message)
+            else:
+                bot.send_message(message.chat.id, Message.warning)
+                help(message)
         else:
-            bot.send_message(message.chat.id, Message.incorrect_answer + f"\nПравильный ответ: {target_word}🇺🇲")
-            train(message)
-    else:
-        bot.send_message(message.chat.id, 'Простите, я не понял что вы хотели сказать...')
-        help(message)
+            bot.send_message(message.chat.id, Message.warning)
+            help(message)
 
 
 
