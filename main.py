@@ -211,19 +211,21 @@ def message_reply(message):
                 target_word = data['target_word']
                 russian_word = data['russian_word']
                 other_words = data['other_words']
+
+        if message.text == target_word:
+            bot.send_message(message.chat.id, Message.correct_answer + f"\n{target_word}🇺🇲 -> {russian_word}🇷🇺")
+            train(message)
+        elif message.text in other_words:
+            bot.send_message(message.chat.id, Message.incorrect_answer + f"\nПравильный ответ: {target_word}🇺🇲")
+            train(message)
+        else:
+            bot.send_message(message.chat.id, Message.warning)
+            help(message)
     except:
         bot.send_message(message.chat.id, Message.warning)
         help(message)
 
-    if message.text == target_word:
-        bot.send_message(message.chat.id, Message.correct_answer + f"\n{target_word}🇺🇲 -> {russian_word}🇷🇺")
-        train(message)
-    elif message.text in other_words:
-        bot.send_message(message.chat.id, Message.incorrect_answer + f"\nПравильный ответ: {target_word}🇺🇲")
-        train(message)
-    else:
-        bot.send_message(message.chat.id, Message.warning)
-        help(message)
+
 
 
 
@@ -235,7 +237,8 @@ if __name__ == '__main__':
     session = db.create_session(engine)
 
     create_tables(engine)
-    db.add_test_data(session=session, Word=Word)
+    if not session.query(Word).all():
+        db.add_test_data(session=session, Word=Word)
 
     bot.polling()
     session.close()
