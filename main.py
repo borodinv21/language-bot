@@ -201,28 +201,29 @@ def next_word(message):
 
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def message_reply(message):
-    print(bot.retrieve_data(message.from_user.id, message.chat.id))
-    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        print(data)
-        if data['target_word']:
-            target_word = data['target_word']
-            russian_word = data['russian_word']
-            other_words = data['other_words']
+    target_word = ''
+    russian_word = ''
+    other_words = ''
 
+    try:
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            if data['target_word']:
+                target_word = data['target_word']
+                russian_word = data['russian_word']
+                other_words = data['other_words']
+    except:
+        bot.send_message(message.chat.id, Message.warning)
+        help(message)
 
-            if message.text == target_word:
-                bot.send_message(message.chat.id, Message.correct_answer + f"\n{target_word}🇺🇲 -> {russian_word}🇷🇺")
-                train(message)
-            elif message.text in other_words:
-                print(message.text)
-                bot.send_message(message.chat.id, Message.incorrect_answer + f"\nПравильный ответ: {target_word}🇺🇲")
-                train(message)
-            else:
-                bot.send_message(message.chat.id, Message.warning)
-                help(message)
-        else:
-            bot.send_message(message.chat.id, Message.warning)
-            help(message)
+    if message.text == target_word:
+        bot.send_message(message.chat.id, Message.correct_answer + f"\n{target_word}🇺🇲 -> {russian_word}🇷🇺")
+        train(message)
+    elif message.text in other_words:
+        bot.send_message(message.chat.id, Message.incorrect_answer + f"\nПравильный ответ: {target_word}🇺🇲")
+        train(message)
+    else:
+        bot.send_message(message.chat.id, Message.warning)
+        help(message)
 
 
 
@@ -233,8 +234,8 @@ if __name__ == '__main__':
     engine = db.create_engine()
     session = db.create_session(engine)
 
-    # create_tables(engine)
-    # db.add_test_data(session=session, Word=Word)
+    create_tables(engine)
+    db.add_test_data(session=session, Word=Word)
 
     bot.polling()
     session.close()
